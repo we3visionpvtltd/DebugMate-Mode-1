@@ -1,2 +1,2 @@
 # DebugMate-Mode-1
-Made By Zeel - Dhairya - Krishna - Mili
+Made By Zeel - Dhairya - Mili- krishna
