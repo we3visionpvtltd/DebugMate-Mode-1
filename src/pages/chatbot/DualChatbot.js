@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useContext } from 'react';
+import React, { useRef, useEffect, useState, useContext, useMemo } from 'react';
 import { Card } from 'react-bootstrap';
 import { FaComments, FaPaperclip, FaPaperPlane } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
@@ -21,11 +21,63 @@ const DualChatbot = () => {
     projectName: null
   });
   const chatEndRef = useRef(null);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);  
 
   const context = useContext(MyContext);
   const userEmail = context.userEmail;
   const userName = context.userName || "User";
+  
+  // Get project chats from both WorkChat and current chat history
+  const projectChats = useMemo(() => {
+    // Create a map to store the most recent chat for each project
+    const projectMap = new Map();
+    
+    // 1. Get project chats from WorkChat component
+    const allKeys = Object.keys(localStorage);
+    const projectChatKeys = allKeys.filter(key => 
+      key.startsWith('chatHistory_project_') || 
+      (userEmail && key.startsWith(`chatHistory_project_${userEmail}_`))
+    );
+    
+    // Process WorkChat project chats
+    projectChatKeys.forEach(key => {
+      try {
+        const chats = JSON.parse(localStorage.getItem(key) || '[]');
+        chats.forEach(chat => {
+          if (chat?.projectId && chat.projectId !== 'Default' && chat.projectId !== 'default') {
+            const existingChat = projectMap.get(chat.projectId);
+            if (!existingChat || new Date(chat.timestamp) > new Date(existingChat.timestamp)) {
+              projectMap.set(chat.projectId, {
+                ...chat,
+                // Ensure we have all required fields
+                id: chat.id || `workchat_${chat.projectId}_${chat.timestamp}`,
+                sessionId: chat.sessionId || chat.id,
+                chatType: 'project',
+                projectName: chat.projectName || chat.sessionName || 'Unnamed Project'
+              });
+            }
+          }
+        });
+      } catch (e) {
+        console.error(`Error parsing chat from ${key}:`, e);
+      }
+    });
+    
+    // 2. Process current chat history
+    chatHistory.forEach(chat => {
+      if (chat?.projectId && chat.projectId !== 'Default' && chat.projectId !== 'default') {
+        const existingChat = projectMap.get(chat.projectId);
+        if (!existingChat || new Date(chat.timestamp) > new Date(existingChat.timestamp)) {
+          projectMap.set(chat.projectId, chat);
+        }
+      }
+    });
+    
+    // Convert map values to array and sort by timestamp (newest first)
+    return Array.from(projectMap.values()).sort((a, b) => 
+      new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+    );
+  }, [chatHistory, userEmail]);
 // Responsive design: detect mobile screen
 useEffect(() => {
   const checkScreenSize = () => {
@@ -224,12 +276,10 @@ useEffect(() => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',"Authorization": "Bearer debugmate123"   },
         credentials: 'include',
-          body: JSON.stringify({
+        body: JSON.stringify({
     message: newMessage.content,
     chat_type: currentSession.projectId ? 'project' : 'general',
-    project_id: currentSession.projectId || 'general'
-  }),
-      });
+    project_id: currentSession.projectId || 'general'}), });
   
       const data = await response.json();
       const botReply = { role: 'assistant', content: data.reply || ' No reply from server' };
@@ -385,35 +435,71 @@ useEffect(() => {
       {/* History Panel */}
       <div className={`dual-history-panel${historyOpen ? '' : ' closed'}`}>
         <div className="dual-panel-header">
-          <h3>Dual Chat History</h3>
+          <h3>Project Chats</h3>
         </div>
         <div className="dual-history-list">
-          {chatHistory.length === 0 ? (
-            <p style={{ color: '#888', fontStyle: 'italic' }}>No previous sessions</p>
+          {projectChats.length === 0 ? (
+            <p style={{ color: '#888', fontStyle: 'italic'}}>No project chats found</p>
           ) : (
-            chatHistory.map(chat => (
+            projectChats.map(chat => (
               <div
                 key={chat.id}
                 className={`dual-history-item${generalMessages === chat.fullChat ? ' selected' : ''}`}
                 onClick={() => handleHistoryClick(chat)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <div className="dual-history-type-badge">{chat.projectName || 'Session'}</div>
-                    <button
-                      className="dual-history-delete-btn"
-                      onClick={e => { e.stopPropagation(); handleHistoryDelete(chat.id); }}
-                      style={{ marginLeft: '8px', marginTop: '-6px' }}
-                    >
-                      ✕
-                    </button>
+                    <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0, marginTop: '-2px' }}>
+                      <div 
+                        className="dual-history-type-badge" 
+                        style={{ 
+                          color: 'rgb(51, 51, 51)',
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          flex: '1 1 0%',
+                          lineHeight: '1.2',
+                          fontSize: '11px',
+                          letterSpacing: '0.2px'
+                        }}
+                      >
+                        {chat.projectName || 'Unnamed Project'}
+                      </div>
+                      <button
+                        className="dual-history-delete-btn"
+                        onClick={e => { e.stopPropagation(); handleHistoryDelete(chat.id); }}
+                        style={{ 
+                          marginLeft: '8px', 
+                          flexShrink: 0, 
+                          position: 'relative',
+                          top: '-2px'
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div className="dual-history-session-name">{chat.sessionName || `Session ${new Date(chat.timestamp).toLocaleDateString()}`}</div>
-                  <span className="dual-history-summary">{chat.summary}</span>
+                  {chat.projectId && chat.projectId !== 'Default' && (
+                    <div style={{ marginTop: '2px' }}>
+                      <small style={{ color: '#666', fontSize: '10px' }}>
+                        ID: {chat.projectId}
+                      </small>
+                    </div>
+                  )}
+                  {chat.summary && (
+                    <div className="dual-history-summary" style={{ margin: '8px 0', color: '#444' }}>
+                      {chat.summary.length > 80 ? `${chat.summary.substring(0, 80)}...` : chat.summary}
+                    </div>
+                  )}
                   <div className="dual-history-meta">
                     {chat.messageCount && (
-                      <small style={{ display: 'inline-block', color: '#666', fontSize: '10px', marginRight: '10px' }}>
+                      <small style={{ 
+                        display: 'inline-block', 
+                        color: '#666', 
+                        fontSize: '10px', 
+                        marginRight: '10px' 
+                      }}>
                         {chat.messageCount} messages
                       </small>
                     )}
