@@ -1,0 +1,861 @@
+/* Project Details Page Styles */
+
+.project-details-container {
+  margin-top: 80px;
+  margin-bottom: 40px;
+}
+
+/* Project Details Page Scrolling */
+.project-details-container {
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 20px 0;
+}
+
+.project-details-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.project-details-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.project-details-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.project-details-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Table container scrolling */
+.table_container {
+  margin-top: 140px;
+  min-height: calc(100vh - 140px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 20px;
+}
+
+/* Table styling for better scrolling */
+.table_container table {
+  margin-bottom: 0;
+}
+
+.table_container .table-responsive {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+/* Card view scrolling */
+.table_container .row {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+/* Card styling */
+.card {
+  border-radius: 16px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* Card scrolling for long content */
+.card-body {
+  max-height: 450px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-body::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 3px;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 3px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* Project card custom styling */
+.project-card-custom {
+  border-radius: 16px;
+  padding: 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 300px;
+  max-width: 400px;
+  min-height: 25vh;
+  max-height: 30vh;
+  border: none;
+  flex: 1;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.project-card-custom:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.project-card-custom .project-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+/* Project description styling */
+.project-description {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  min-height: 40px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.3s ease;
+}
+
+.project-description.expanded {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+
+.read-more-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  margin-top: 0.5rem;
+  transition: all 0.3s ease;
+  text-decoration: underline;
+}
+
+.read-more-btn:hover {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.project-card-custom .project-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.project-card-custom .badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+}
+
+/* Projects container for card view */
+.projects-container-custom {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1rem;
+  padding: 1rem 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Badge styling */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Progress bar styling */
+.progress {
+  height: 10px;
+  border-radius: 8px;
+  background-color: #f1f5f9;
+}
+
+.progress-bar {
+  border-radius: 8px;
+}
+
+/* List group styling */
+.list-group-item {
+  border: none;
+  padding: 0.75rem 0;
+  background: transparent;
+}
+
+.list-group-item:not(:last-child) {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* List group scrolling */
+.list-group {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.list-group::-webkit-scrollbar {
+  width: 6px;
+}
+
+.list-group::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 3px;
+}
+
+.list-group::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 3px;
+}
+
+.list-group::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* Button styling */
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.8rem;
+  border: 2px solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-outline-primary {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.btn-outline-primary:hover {  
+  border-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-outline-secondary {
+  background: linear-gradient(135deg, #64748b, #475569);
+  border-color: #64748b;
+  color: white;
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2);
+}
+
+.btn-outline-secondary:hover {
+  background: linear-gradient(135deg, #475569, #334155);
+  border-color: #475569;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: #ef4444;
+  color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-color: #dc2626;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Button group styling */
+.d-flex.gap-2 .btn {
+  margin: 0;
+  min-width: 90px;
+  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.d-flex.gap-2 .btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Icon styling */
+.text-muted {
+  color: #64748b !important;
+}
+
+/* Typography */
+h2 {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+h5 {
+  color: #1e293b;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+h6 {
+  color: #374151;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.fw-bold {
+  font-weight: 600;
+}
+
+/* Spacing utilities */
+.mb-4 {
+  margin-bottom: 1.5rem !important;
+}
+
+.mb-3 {
+  margin-bottom: 1rem !important;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem !important;
+}
+
+.mb-1 {
+  margin-bottom: 0.25rem !important;
+}
+
+.me-2 {
+  margin-right: 0.5rem !important;
+}
+
+.ms-2 {
+  margin-left: 0.5rem !important;
+}
+
+/* Flex utilities */
+.d-flex {
+  display: flex !important;
+}
+
+.align-items-center {
+  align-items: center !important;
+}
+
+.justify-content-between {
+  justify-content: space-between !important;
+}
+
+.flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+.gap-2 {
+  gap: 0.5rem !important;
+}
+
+/* ========================================
+   COMPREHENSIVE DARK MODE THEME
+   ======================================== */
+
+/* Dark Mode - Main Background */
+body.dark {
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460, #533483);
+}
+
+/* Dark Mode - Project Details Container */
+body.dark .project-details-container {
+  background: transparent;
+  color: #e2e8f0;
+}
+
+/* Dark Mode - Table Container */
+body.dark .table_container {
+  background: transparent;
+  color: #e2e8f0;
+}
+
+/* Dark Mode - Scrollbars */
+body.dark .project-details-container::-webkit-scrollbar,
+body.dark .table_container::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.dark .project-details-container::-webkit-scrollbar-track,
+body.dark .table_container::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.6);
+  border-radius: 4px;
+}
+
+body.dark .project-details-container::-webkit-scrollbar-thumb,
+body.dark .table_container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border-radius: 4px;
+}
+
+body.dark .project-details-container::-webkit-scrollbar-thumb:hover,
+body.dark .table_container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
+}
+
+/* Dark Mode - Cards */
+body.dark .card {
+  background: linear-gradient(135deg, rgba(243, 215, 255, 0.3), rgba(226, 186, 210, 0.3), rgba(249, 197, 197, 0.3), rgba(201, 201, 244, 0.3));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+/* Dark Mode - Card Body */
+body.dark .card-body {
+  background: transparent;
+  color: #e2e8f0;
+}
+
+body.dark .card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+body.dark .card-body::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.6);
+  border-radius: 3px;
+}
+
+body.dark .card-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border-radius: 3px;
+}
+
+body.dark .card-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
+}
+
+/* Dark Mode - Project Cards */
+body.dark .project-card-custom {
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460, #533483);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .project-card-custom:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+body.dark .project-card-custom .project-title {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .project-card-custom .project-subtitle {
+  color: #cbd5e1;
+}
+
+body.dark .project-description {
+  color: #cbd5e1;
+}
+
+body.dark .read-more-btn {
+  color: #8b5cf6;
+}
+
+body.dark .read-more-btn:hover {
+  color: #a78bfa;
+}
+
+/* Dark Mode - Projects Container */
+body.dark .projects-container-custom {
+  scrollbar-color: rgba(139, 92, 246, 0.3) rgba(51, 65, 85, 0.6);
+}
+
+body.dark .projects-container-custom::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.dark .projects-container-custom::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.6);
+  border-radius: 4px;
+}
+
+body.dark .projects-container-custom::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border-radius: 4px;
+}
+
+body.dark .projects-container-custom::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
+}
+
+/* Dark Mode - Badges */
+body.dark .badge {
+  background: rgba(51, 65, 85, 0.6) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Dark Mode - Progress Bars */
+body.dark .progress {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .progress-bar {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+}
+
+/* Dark Mode - List Groups */
+body.dark .list-group-item {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .list-group-item:not(:last-child) {
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+body.dark .list-group-item:hover {
+  background: rgba(71, 85, 105, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+body.dark .list-group::-webkit-scrollbar {
+  width: 6px;
+}
+
+body.dark .list-group::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.6);
+  border-radius: 3px;
+}
+
+body.dark .list-group::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border-radius: 3px;
+}
+
+body.dark .list-group::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
+}
+
+/* Dark Mode - Buttons */
+body.dark .btn-primary {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .btn-primary:hover {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+body.dark .btn-outline-primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-color: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+body.dark .btn-outline-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  border-color: #1d4ed8;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+body.dark .btn-outline-secondary {
+  background: linear-gradient(135deg, #64748b, #475569);
+  border-color: #64748b;
+  color: white;
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+}
+
+body.dark .btn-outline-secondary:hover {
+  background: linear-gradient(135deg, #475569, #334155);
+  border-color: #475569;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+}
+
+body.dark .btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: #ef4444;
+  color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+body.dark .btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-color: #dc2626;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Dark Mode - Typography */
+body.dark h2,
+body.dark h5,
+body.dark h6 {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .text-muted {
+  color: #cbd5e1 !important;
+}
+
+/* Dark Mode - Scroll to Top Button */
+body.dark .scroll-to-top-btn {
+  background: linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .scroll-to-top-btn:hover {
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+/* Dark Mode - Spinner */
+body.dark .spinner-border {
+  color: #8b5cf6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .card-body {
+    padding: 1rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .table_container {
+    margin-top: 120px;
+    min-height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+    padding: 15px;
+  }
+  
+  .projects-container-custom {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    max-height: 60vh;
+  }
+  
+  .project-card-custom {
+    min-width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .table_container {
+    margin-top: 100px;
+    min-height: calc(100vh - 100px);
+    max-height: calc(100vh - 100px);
+    padding: 10px;
+  }
+  
+  .projects-container-custom {
+    max-height: 50vh;
+  }
+  
+  .project-card-custom {
+    min-height: 20vh;
+  }
+  
+  .scroll-to-top-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+  }
+}
+
+/* Animation for loading states */
+.spinner-border {
+  color: #3b82f6;
+}
+
+/* Hover effects for interactive elements */
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Custom scrollbar for long content */
+.card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Table container scrollbar styling */
+.table_container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.table_container::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 5px;
+}
+
+.table_container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 5px;
+}
+
+.table_container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Scroll to top button */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #007bff;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.scroll-to-top-btn:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+}
+
+.scroll-to-top-btn.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.scroll-to-top-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Responsive adjustments for scroll to top button */
+@media (max-width: 768px) {
+  .scroll-to-top-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+  }
+  
+  .scroll-to-top-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
