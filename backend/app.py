@@ -32,34 +32,34 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 # ---------------- Initialize Clients ----------------
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# app = Flask(__name__)
-# app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
-# app.config['SESSION_TYPE'] = 'filesystem'
-# app.config["SESSION_PERMANENT"] = False
-# CORS(app, 
-#     supports_credentials=True,
-#     origins=["http://localhost:3000", "http://localhost:5173"])
-# Session(app)
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config["SESSION_PERMANENT"] = False
-
-CORS(
-    app,
-    resources={r"/*": {"origins": "https://debugmate.we3vision.com/"}},
-    supports_credentials=True,
-    expose_headers=["Authorization"],
-    allow_headers=["Content-Type", "Authorization"]
-)
-app.config.update(
-    SESSION_COOKIE_SAMESITE="None",  # allows cross-domain usage
-    SESSION_COOKIE_SECURE=True       # must be HTTPS
-)
 CORS(app, 
     supports_credentials=True,
-    origins=[ "https://debugmate.we3vision.com/"])
+    origins=["http://localhost:3000", "http://localhost:5173"])
 Session(app)
+# app = Flask(__name__)
+# app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
+# app.config['SESSION_TYPE'] = 'filesystem'
+# app.config["SESSION_PERMANENT"] = False
+
+# CORS(
+#     app,
+#     resources={r"/*": {"origins": "https://debugmate.we3vision.com/"}},
+#     supports_credentials=True,
+#     expose_headers=["Authorization"],
+#     allow_headers=["Content-Type", "Authorization"]
+# )
+# app.config.update(
+#     SESSION_COOKIE_SAMESITE="None",  # allows cross-domain usage
+#     SESSION_COOKIE_SECURE=True       # must be HTTPS
+# )
+# CORS(app, 
+#     supports_credentials=True,
+#     origins=[ "https://debugmate.we3vision.com/"])
+# Session(app)
 
 def verify_api_key():
     token = request.headers.get("Authorization")
@@ -79,6 +79,7 @@ OUTRO_LINES = [
     "📌 Let me know if you’d like me to expand on any section.",
     "✨ I can also share related project notes if you want."
 ]
+
 
 # -------------------- TECHNICAL PROMPT DETECTOR --------------------
 def is_technical_prompt(query, project_data):
@@ -100,35 +101,14 @@ def is_technical_prompt(query, project_data):
     return any(word in q for word in project_keywords.union(tech_terms))
 
 
-def verify_response(user_query, bot_reply, project_data):
-    from difflib import SequenceMatcher
 
-    combined_project_text = " ".join(
-        str(v) for proj in project_data for v in proj.values() if isinstance(v, (str, list))
-    ).lower()
-
-    # Compare user query and chatbot reply with project data context
-    query_match = SequenceMatcher(None, user_query.lower(), combined_project_text).ratio()
-    reply_match = SequenceMatcher(None, bot_reply.lower(), combined_project_text).ratio()
-    alignment_score = round((query_match + reply_match) / 2, 2)
-
-    trust_level = (
-        "Trusted ✅" if alignment_score >= 0.75
-        else "Review ⚠️" if alignment_score >= 0.45
-        else "Low 🔻"
-    )
-
-    return {
-        "alignment_score": alignment_score,
-        "trust_level": trust_level
-    }
 
 def generate_alignment_line(user_query: str, response: str, project_data: list) -> str:
     """
     Returns one-line accuracy result for technical queries.
     """
     try:
-        result = verify_response(user_query, response, project_data)
+        result = verify_response_final(user_query, response, project_data)
         score = result.get("alignment_score", 0)
         trust = result.get("trust_level", "Review 🚫")
         return f"\n\n🔹 Accuracy: {score} ({trust})"
@@ -563,304 +543,239 @@ def is_technical_prompt(user_input: str, project_data: list) -> bool:
     overlap = len([t for t in tokens if t in project_keywords])
     if overlap >= 1:
         return True
-
-    return False
-
 import re
 from difflib import SequenceMatcher
-from datetime import datetime
 
 EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", re.I)
 
 def _tokenize(text: str):
-    return re.findall(r"[a-z0-9@._-]+", (text or "").lower())
-
-def _safe_get(proj: dict, keys):
-    parts = []
-    for k in (keys if isinstance(keys, (list,tuple)) else [keys]):
-        v = proj.get(k)
-        if v is None:
-            continue
-        if isinstance(v, list):
-            for item in v:
-                parts.append(str(item))
-        else:
-            parts.append(str(v))
-    return " ".join(parts).strip()
-
-def _parse_date(text: str):
-    """
-    Try to parse a date-like string to YYYY-MM-DD or (month name + year) fallback.
-    Uses common formats; returns normalized 'YYYY-MM-DD' or 'YYYY-MM' or None.
-    """
     if not text:
-        return None
-    text = text.strip()
-    # try common ISO-ish formats first
-    fmts = ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d",
-            "%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y",
-            "%B %Y", "%b %Y", "%Y"]
-    for f in fmts:
-        try:
-            dt = datetime.strptime(text, f)
-            # return y-m-d if day available else y-m
-            if "%d" in f:
-                return dt.strftime("%Y-%m-%d")
-            elif "%m" in f or "%b" in f or "%B" in f:
-                return dt.strftime("%Y-%m")
-            else:
-                return dt.strftime("%Y")
-        except Exception:
-            continue
-    # last attempt: find month name + day/year pattern via regex
-    m = re.search(r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[^\d]{0,5}(\d{1,2})?,?\s*(\d{4})?", text, re.I)
-    if m:
-        month = m.group(1)
-        day = m.group(2)
-        year = m.group(3)
-        try:
-            month_num = datetime.strptime(month, "%B").month
-        except Exception:
-            try:
-                month_num = datetime.strptime(month, "%b").month
-            except:
-                month_num = None
-        if year and month_num:
-            if day:
-                return f"{int(year):04d}-{month_num:02d}-{int(day):02d}"
-            else:
-                return f"{int(year):04d}-{month_num:02d}"
-    return None
+        return []
+    return re.findall(r"[a-z0-9@._-]+", text.lower())
 
-def verify_response(query: str, reply: str, project_data: list) -> dict:
+def _clean_text_for_compare(text: str):
+    """Remove headings, markdown, and noisy words to get a concise compare string."""
+    if not text:
+        return ""
+    s = text
+    # remove common section headings (SUMMARY, DETAILS, INFORMATION, etc.)
+    s = re.sub(r"(?mi)^(summary|details|information|info|result|solution)\s*$", "", s)
+    # remove lines of all-caps short headings
+    s = re.sub(r"(?m)^[A-Z\s]{3,50}\n", "", s)
+    # remove markdown bullets and extra whitespace
+    s = re.sub(r"[-•*]{1,2}\s+", " ", s)
+    s = re.sub(r"\n+", " ", s)
+    s = re.sub(r"\s{2,}", " ", s)
+    return s.strip().lower()
+
+def _extract_project_fields(project_data: list):
     """
-    Field-aware verification:
-    - Detects likely requested field (leader, timeline, team, tech_stack, client, description)
-    - Uses specialized checks: exact date parse, email/name match, membership overlap, token overlap
-    - Returns alignment_score (0-100), trust_level, recommendation
+    Return a dict of aggregated strings for the key fields we check:
+    name, leader (name/email), timeline (start/end), team (names/emails), tech, client, status, description
+    """
+    agg = {
+        "name": [],
+        "leader": [],
+        "leader_emails": set(),
+        "timeline": [],
+        "team": [],
+        "team_emails": set(),
+        "tech": [],
+        "client": [],
+        "status": [],
+        "description": []
+    }
+    for proj in project_data or []:
+        if not isinstance(proj, dict):
+            continue
+        # name
+        for k in ("project_name", "project_title", "name", "custom_uuid"):
+            if proj.get(k):
+                agg["name"].append(str(proj.get(k)))
+        # leader
+        for k in ("leader_of_project", "leader", "project_lead"):
+            if proj.get(k):
+                agg["leader"].append(str(proj.get(k)))
+        # leader emails
+        for k in ("leader_email", "leader_of_project_email",):
+            if proj.get(k):
+                agg["leader_emails"].add(str(proj.get(k)).lower())
+        # timeline
+        for k in ("start_date", "end_date"):
+            if proj.get(k):
+                agg["timeline"].append(str(proj.get(k)))
+        # team members
+        members = proj.get("team_members") or []
+        if isinstance(members, list):
+            for m in members:
+                if isinstance(m, dict):
+                    # common keys: name,email
+                    if m.get("email"):
+                        agg["team_emails"].add(str(m.get("email")).lower())
+                    # add name-like tokens of member dict
+                    agg["team"].append(" ".join([str(v) for v in m.values() if v]))
+                else:
+                    agg["team"].append(str(m))
+        # assigned emails
+        for k in ("assigned_to_emails", "assigned_to", "assigned"):
+            val = proj.get(k)
+            if isinstance(val, (list, tuple)):
+                for e in val:
+                    agg["team_emails"].add(str(e).lower())
+            elif val:
+                agg["team_emails"].add(str(val).lower())
+        # tech
+        for k in ("tech_stack", "tech_stack_custom", "technology"):
+            val = proj.get(k)
+            if val:
+                if isinstance(val, list):
+                    agg["tech"].extend([str(x) for x in val])
+                else:
+                    agg["tech"].append(str(val))
+        # client & status & description
+        if proj.get("client_name"):
+            agg["client"].append(str(proj.get("client_name")))
+        if proj.get("status"):
+            agg["status"].append(str(proj.get("status")))
+        for k in ("project_description","project_scope"):
+            if proj.get(k):
+                agg["description"].append(str(proj.get(k)))
+    # join lists to single strings
+    for k in ("name","leader","timeline","team","tech","client","status","description"):
+        agg[k] = " ".join(agg[k]).strip().lower()
+    agg["leader_emails"] = set(e for e in agg["leader_emails"] if e)
+    agg["team_emails"] = set(e for e in agg["team_emails"] if e)
+    return agg
+
+def verify_response_final(query: str, reply: str, project_data: list, debug: bool = False) -> dict:
+    """
+    Field-aware verifier with strong exact/substring bonuses for short answers.
+    Returns: {"alignment_score": float or None, "trust_level": str, "recommendation": str}
     """
     try:
         if not project_data or not isinstance(project_data, list) or len(project_data) == 0:
-            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No project data available."}
+            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No project data."}
 
-        q = (query or "").lower().strip()
-        r = (reply or "").lower().strip()
+        q = (query or "").strip().lower()
+        raw_reply = (reply or "").strip()
+        # clean reply before comparing to avoid headings and metadata
+        r = _clean_text_for_compare(raw_reply)
 
-        # determine target field(s) from query
-        field_map = {
-            "leader": ["leader", "lead", "project head", "manager", "supervisor"],
-            "timeline": ["timeline", "start", "end", "date", "deadline", "schedule"],
-            "team": ["team", "members", "member", "people", "who is on", "who are"],
-            "tech_stack": ["tech", "technology", "stack", "framework", "language", "tools"],
-            "client": ["client", "customer"],
-            "status": ["status", "progress", "phase"],
-            "description": ["about", "description", "overview", "what is"]
-        }
+        agg = _extract_project_fields(project_data)
+        if debug:
+            print("🔍 verify debug - agg fields:", {k: (v[:120] + "..." if isinstance(v,str) and len(v)>120 else v) for k,v in agg.items()})
 
-        detected = set()
-        for fld, kws in field_map.items():
-            for kw in kws:
-                if kw in q:
-                    detected.add(fld)
-                    break
+        # detect target field from query (priority order)
+        field_priorities = []
+        if any(k in q for k in ["leader", "lead", "project lead", "project leader"]):
+            field_priorities.append("leader")
+        if any(k in q for k in ["team", "member", "members"]):
+            field_priorities.append("team")
+        if any(k in q for k in ["start date","start", "end date","end","timeline","deadline"]):
+            field_priorities.append("timeline")
+        if any(k in q for k in ["project name","name of project","project title","project name"]):
+            field_priorities.append("name")
+        if any(k in q for k in ["tech", "stack", "technology", "framework"]):
+            field_priorities.append("tech")
+        if any(k in q for k in ["client", "customer"]):
+            field_priorities.append("client")
+        if any(k in q for k in ["status", "progress", "phase"]):
+            field_priorities.append("status")
+        # fallback: if project keywords appear, prioritize description/name
+        if not field_priorities:
+            if any(k in q for k in ["project", "project details", "project info", "what is this project"]):
+                field_priorities.append("description")
+            else:
+                field_priorities.append("description")  # default fallback
 
-        # default fallback to description if nothing detected
-        if not detected:
-            detected.add("description")
-
-        # Build project field text snippets to compare
-        combined_by_field = {}
-        for fld in {"leader","timeline","team","tech_stack","client","status","description"}:
-            combined_by_field[fld] = ""
-        for proj in project_data:
-            if not isinstance(proj, dict):
-                continue
-            # map db keys into our fields
-            combined_by_field["leader"] += " " + _safe_get(proj, ["leader_of_project", "leader", "project_lead"])
-            # timeline
-            combined_by_field["timeline"] += " " + _safe_get(proj, ["start_date", "end_date"])
-            # team: include team_members array, assigned_to_emails, etc.
-            combined_by_field["team"] += " " + _safe_get(proj, ["team_members", "assigned_to_emails", "project_responsibility"])
-            # tech
-            combined_by_field["tech_stack"] += " " + _safe_get(proj, ["tech_stack", "tech_stack_custom"])
-            # client
-            combined_by_field["client"] += " " + _safe_get(proj, ["client_name", "client"])
-            # status
-            combined_by_field["status"] += " " + _safe_get(proj, ["status"])
-            # description and scope
-            combined_by_field["description"] += " " + _safe_get(proj, ["project_description", "project_scope", "project_name"])
-
-        # helper: exact email match gives strong signal
-        emails_in_reply = EMAIL_RE.findall(reply)
-        emails_in_project = set()
-        for v in combined_by_field.values():
-            for e in EMAIL_RE.findall(v):
-                emails_in_project.add(e.lower())
-
-        # Start scoring per detected field and aggregate
         scores = []
-        for fld in detected:
-            proj_text = (combined_by_field.get(fld) or "").lower().strip()
+
+        # helper to compute token overlap ratio
+        def token_ratio(a, b):
+            atoks = set(_tokenize(a))
+            btoks = set(_tokenize(b))
+            if not btoks:
+                return 0.0
+            return len(atoks & btoks) / max(1, len(btoks))
+
+        for fld in field_priorities:
+            proj_text = agg.get(fld, "") or ""
             if not proj_text:
-                # no data for this field
                 scores.append(None)
                 continue
 
-            # specialized checks
-            if fld == "leader":
-                # if reply contains leader email exactly -> high score
-                if any(e.lower() in reply for e in emails_in_project):
-                    scores.append(98.0)
-                    continue
-                # check if leader name appears: extract leader_of_project raw values and compare tokens
-                leader_vals = []
-                for proj in project_data:
-                    for k in ("leader_of_project","leader","project_lead"):
-                        if proj.get(k):
-                            leader_vals.append(str(proj.get(k)).lower())
-                leader_tokens = set(_tokenize(" ".join(leader_vals)))
-                reply_tokens = set(_tokenize(reply))
-                overlap = len(reply_tokens & leader_tokens)
-                if overlap >= 1:
-                    # if reply short and contains leader token, give high score
-                    if len(reply.split()) <= 6:
-                        scores.append(95.0)
-                    else:
-                        scores.append(min(95.0, 80.0 + overlap * 5.0))
-                    continue
-                # fallback: token similarity
-                sim = SequenceMatcher(None, reply, proj_text).ratio()
-                scores.append(round(sim * 60, 2))  # lower weight fallback
+            # --- exact / substring checks (strong) ---
+            # direct substring match (case-insensitive)
+            if r and r in proj_text:
+                if debug: print(f"🔹 exact substr match for field '{fld}' -> 99")
+                scores.append(99.0)
+                continue
 
-            elif fld == "timeline":
-                # Parse dates from project text (start & end)
-                # Try to find start_date and end_date patterns or tokens
-                start = None
-                end = None
-                for proj in project_data:
-                    s = proj.get("start_date")
-                    e = proj.get("end_date")
-                    if s and not start:
-                        start = _parse_date(str(s))
-                    if e and not end:
-                        end = _parse_date(str(e))
-                # parse date from reply
-                parsed_reply_date_single = _parse_date(reply)
-                # If reply mentions both start and end, try to find both strings
-                parsed_reply_dates = re.findall(r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2} \w+ \d{4}|\w+ \d{4})\b", reply, re.I)
-                if parsed_reply_date_single and start:
-                    # exact match
-                    if parsed_reply_date_single == start:
-                        scores.append(100.0)
-                        continue
-                    # partial month/year match
-                    if parsed_reply_date_single.startswith(start[:7]):
-                        scores.append(95.0)
-                        continue
-                # if both start and end present in reply, check both tokens
-                if start and end and parsed_reply_dates:
-                    s_in = any(_parse_date(d) == start for d in parsed_reply_dates)
-                    e_in = any(_parse_date(d) == end for d in parsed_reply_dates)
-                    if s_in and e_in:
-                        scores.append(100.0)
-                        continue
-                    elif s_in or e_in:
-                        scores.append(90.0)
-                        continue
-                # fallback: token overlap
-                reply_tokens = set(_tokenize(reply))
-                proj_tokens = set(_tokenize(proj_text))
-                overlap = len(reply_tokens & proj_tokens)
-                ratio = overlap / max(1, len(proj_tokens))
-                scores.append(round(min(1.0, ratio) * 100, 2))
+            # emails present -> strong match
+            reply_emails = set(e.lower() for e in EMAIL_RE.findall(raw_reply))
+            if fld == "leader" and reply_emails and agg.get("leader_emails"):
+                if reply_emails & agg["leader_emails"]:
+                    scores.append(99.0); continue
+            if fld == "team" and reply_emails and agg.get("team_emails"):
+                if reply_emails & agg["team_emails"]:
+                    scores.append(98.0); continue
 
-            elif fld == "team":
-                # check emails or names overlap
-                project_member_emails = set()
-                project_member_names = set()
-                for proj in project_data:
-                    members = proj.get("team_members") or []
-                    if isinstance(members, list):
-                        for m in members:
-                            if isinstance(m, dict):
-                                # fields: role, email, name maybe
-                                if m.get("email"):
-                                    project_member_emails.add(str(m.get("email")).lower())
-                                # collect names if available (maybe value contains role/email)
-                                project_member_names.update(_tokenize(" ".join([str(v) for v in m.values()])))
-                            else:
-                                project_member_names.update(_tokenize(str(m)))
-                    # assigned_to_emails
-                    for e in (proj.get("assigned_to_emails") or []):
-                        project_member_emails.add(str(e).lower())
-                # email overlap
-                reply_emails = set(EMAIL_RE.findall(reply))
-                if reply_emails and project_member_emails:
-                    inter = len(reply_emails & project_member_emails)
-                    if inter >= 1:
-                        scores.append(98.0)
-                        continue
-                # name overlap tokens
-                reply_tokens = set(_tokenize(reply))
-                name_overlap = len(reply_tokens & project_member_names)
-                # ratio
-                ratio = name_overlap / max(1, len(project_member_names))
-                scores.append(round(min(1.0, ratio) * 100, 2))
+            # name token overlap (short reply benefit)
+            reply_tokens = set(_tokenize(r))
+            proj_tokens = set(_tokenize(proj_text))
+            overlap = len(reply_tokens & proj_tokens)
 
-            elif fld == "tech_stack":
-                # compare tokens in tech stack
-                proj_tokens = set(_tokenize(proj_text))
-                reply_tokens = set(_tokenize(reply))
-                inter = len(proj_tokens & reply_tokens)
-                # compute coverage: how many project tech tokens mentioned in reply
-                coverage = inter / max(1, len(proj_tokens))
-                # scale
-                scores.append(round(min(1.0, coverage) * 100, 2))
+            if overlap >= 1:
+                # short reply (<= 8 tokens) with overlap -> high score
+                if len(reply_tokens) <= 8:
+                    score = min(98.0, 85.0 + overlap * 4.0)
+                    if debug: print(f"🔹 short overlap for field '{fld}' ->", score)
+                    scores.append(score); continue
+                # longer reply -> moderate boost
+                ratio = token_ratio(r, proj_text)
+                score = round(min(1.0, (0.6 * SequenceMatcher(None, r, proj_text).ratio()) + (0.4 * ratio)) * 100, 2)
+                if debug: print(f"🔹 longer overlap/sim for field '{fld}' ->", score)
+                scores.append(score); continue
 
-            elif fld == "client":
-                proj_tokens = set(_tokenize(proj_text))
-                reply_tokens = set(_tokenize(reply))
-                inter = len(reply_tokens & proj_tokens)
-                if inter > 0:
-                    scores.append(95.0 if len(reply.split()) <= 6 else round(min(1.0, inter/len(proj_tokens))*100,2))
-                else:
-                    scores.append(0.0)
+            # timeline special: try numeric date tokens
+            if fld == "timeline":
+                # extract YYYY or YYYY-MM-DD or 'november 6 2025' like patterns
+                def find_year_like(s):
+                    m = re.search(r"\b\d{4}\b", s)
+                    return m.group(0) if m else None
+                proj_year = find_year_like(proj_text)
+                rep_year = find_year_like(raw_reply)
+                if proj_year and rep_year and proj_year == rep_year:
+                    scores.append(92.0); continue
 
-            else:  # description / fallback
-                sim = SequenceMatcher(None, reply, proj_text).ratio()
-                # token overlap
-                reply_tokens = set(_tokenize(reply))
-                proj_tokens = set(_tokenize(proj_text))
-                overlap = len(reply_tokens & proj_tokens)
-                token_ratio = overlap / max(1, len(proj_tokens))
-                weighted = (0.6 * sim) + (0.4 * token_ratio)
-                scores.append(round(min(1.0, weighted) * 100, 2))
+            # fallback: similarity and token ratio
+            sim = SequenceMatcher(None, r, proj_text).ratio()
+            ratio = token_ratio(r, proj_text)
+            final = round(min(1.0, (0.65 * sim) + (0.35 * ratio)) * 100, 2)
+            if debug: print(f"🔹 fallback sim/ratio for '{fld}' -> sim={sim:.3f}, ratio={ratio:.3f}, score={final}")
+            scores.append(final)
 
-        # Aggregate scores: ignore None entries
-        valid_scores = [s for s in scores if s is not None]
-        if not valid_scores:
-            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No relevant project fields found."}
+        # aggregate: prefer highest valid score among priorities
+        valid = [s for s in scores if s is not None]
+        if not valid:
+            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No matching project fields."}
+        final_score = round(max(valid), 2)
 
-        # final score is max of field scores (if multiple detected) — conservative: take max
-        final_score = round(max(valid_scores), 2)
-
-        # interpret trust
         if final_score >= 90:
             trust = "Trusted ✅"
             rec = "Accurate and consistent with project data."
         elif final_score >= 70:
             trust = "Moderate ⚠️"
-            rec = "Partially aligned; verify minor details."
+            rec = "Partially aligned; review small details."
         else:
             trust = "Low ❌"
-            rec = "May not fully align; review carefully."
+            rec = "May not align; please verify against project data."
 
         return {"alignment_score": final_score, "trust_level": trust, "recommendation": rec}
 
     except Exception as e:
-        print("⚠ verify_response() error:", e)
-        return {"alignment_score": None, "trust_level": "Error", "recommendation": "Internal error during verification."}
-
+        print("⚠ verify_response_final error:", e)
+        return {"alignment_score": None, "trust_level": "Error", "recommendation": "Verification error."}
 
 # =============================================================================================================================================================
 # ============================================================announcements functions===================================================================================
@@ -2581,11 +2496,10 @@ def dual_chat():
         try:
             project_data = supabase.table("projects").select("*").execute().data
             if is_technical_prompt(user_input, project_data):
-                alignment = verify_response(user_input, final_reply, project_data)
-                score = alignment.get("alignment_score")
-                trust = alignment.get("trust_level")
-                if score is not None and trust:
-                    final_reply += f"\n\n🔹 Accuracy: {score} ({trust})"
+                check = verify_response_final(user_input, final_reply, project_data, debug=False)
+      
+                if check.get("alignment_score") is not None:
+                     final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
                 else:
                     print("ℹ️ Skipped accuracy display — no valid score.")
             else:
