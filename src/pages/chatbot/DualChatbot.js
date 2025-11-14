@@ -229,7 +229,7 @@ useEffect(() => {
     const setSession = async () => {
       if (!userEmail) return;
       try {
-        await fetch('https://zeelsheta-debugmate_backend.hf.space/set_session', {
+        await fetch('http://localhost:8000/set_session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' ,"Authorization": "Bearer debugmate123" },
           credentials: 'include',
@@ -261,7 +261,9 @@ useEffect(() => {
     // Append user message immediately
     const updatedMessages = [...generalMessages, newMessage];
     setGeneralMessages(updatedMessages);
-  
+    
+    
+
     // Generate session ID if this is the first message
     const sessionId = currentSession.id || `chat_${Date.now()}`;
     setCurrentSession(prev => ({
@@ -272,14 +274,16 @@ useEffect(() => {
     setIsTyping(true);
   
     try {
-      const response = await fetch('https://zeelsheta-debugmate_backend.hf.space/chat/dual', {
+      const chatId = `${userEmail}_${currentSession.projectId || 'general'}`;
+      const response = await fetch('http://localhost:8000/chat/dual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',"Authorization": "Bearer debugmate123"   },
         credentials: 'include',
         body: JSON.stringify({
     message: newMessage.content,
     chat_type: currentSession.projectId ? 'project' : 'general',
-    project_id: currentSession.projectId || 'general'}), });
+    project_id: currentSession.projectId || 'general',
+    chat_id: chatId}), });
   
       const data = await response.json();
       const botReply = { role: 'assistant', content: data.reply || ' No reply from server' };
