@@ -137,6 +137,10 @@ def save_chat_message(user_email: str, role: str, content: str,
 
     project_id = project_id or session.get("project_id", "default")
     chat_id = chat_id or session.get("chat_id", "default")
+    session.setdefault("chat_history", [])
+    session["chat_history"].append({"role": role, "content": content})
+    session["chat_history"] = session["chat_history"][-10:]
+
 
     try:
         # Insert new message with all isolation keys
@@ -174,6 +178,10 @@ def load_chat_history(user_email: str, project_id: str = None,
                       chat_id: str = None, limit: int = 15):
     """Fetch private chat history for one user, project, and chat_id."""
     try:
+        if not user_email:
+            print("⚠ No email found — skipping history load.")
+            return session.get("chat_history", [])
+
         # Get user_id
         user_info = supabase.table("user_perms").select("id").eq("email", user_email).execute()
         if not user_info.data:
@@ -197,8 +205,11 @@ def load_chat_history(user_email: str, project_id: str = None,
         )
 
         if not res.data:
-            print(f"📭 No previous messages for {user_email} | {project_id} | {chat_id}")
+            # print(f"📭 No previous messages for {user_email} | {project_id} | {chat_id}")
+            print(f"📭 may be some data is not there!{chat_id}")
+            
             return []
+        print(f"[DEBUG] Loading chat history for {user_email} | project_id={project_id} | chat_id={chat_id}")
 
         print(f"📜 Loaded {len(res.data)} messages for {user_email} | {project_id} | {chat_id}")
         return [{"role": m["role"], "content": m["content"]} for m in res.data]
@@ -473,10 +484,10 @@ def print_last_conversations(user_email: str, count: int = 5):
     try:
         history = load_chat_history(user_email, limit=count)
         if not history:
-            print(f"📭 No previous messages for {user_email}")
             return
         print(f"\n🗂 Last {len(history)} messages for {user_email}:")
         for i, msg in enumerate(history[-count:], 1):
+            
             role = msg.get("role", "?")
             content = msg.get("content", "").strip()
             print(f"{i}. [{role}] {content}")
@@ -546,27 +557,158 @@ def is_technical_prompt(user_input: str, project_data: list) -> bool:
 import re
 from difflib import SequenceMatcher
 
+# regexes
 EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", re.I)
+WORD_TOKEN_RE = re.compile(r"[a-z0-9@._-]+", re.I)
 
-def _tokenize(text: str):
-    if not text:
-        return []
-    return re.findall(r"[a-z0-9@._-]+", text.lower())
+def _token_set(s: str):
+    return set([t.lower() for t in WORD_TOKEN_RE.findall(s or "")])
 
-def _clean_text_for_compare(text: str):
-    """Remove headings, markdown, and noisy words to get a concise compare string."""
+def _normalize_for_compare(s: str) -> str:
+    """Lowercase and remove punctuation except alphanumerics and spaces."""
+    if not s:
+        return ""
+    s = s.lower()
+    # remove punctuation but keep @ . - _ for emails/tokens
+    s = re.sub(r"[^\w\s@._-]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def _extract_project_agg(project_data: list):
+    """
+    Return aggregated field strings and email sets:
+    {name, status, timeline, leader, leader_emails(set), team_text, team_emails(set), tech_text}
+    """
+    agg = {
+        "name": "",
+        "status": "",
+        "timeline": "",
+        "leader": "",
+        "leader_emails": set(),
+        "team": "",
+        "team_emails": set(),
+        "tech": "",
+        "client": "",
+        "description": "",
+    }
+    for p in project_data or []:
+        if not isinstance(p, dict):
+            continue
+        # name
+        for k in ("project_name","project_title","name"):
+            if p.get(k):
+                agg["name"] += " " + str(p.get(k))
+        # status
+        if p.get("status"):
+            agg["status"] += " " + str(p.get("status"))
+        # timeline
+        for k in ("start_date","end_date"):
+            if p.get(k):
+                agg["timeline"] += " " + str(p.get(k))
+        # leader fields
+        for k in ("leader_of_project","leader","project_lead","leader_name"):
+            if p.get(k):
+                agg["leader"] += " " + str(p.get(k))
+        # leader emails (common custom names)
+        for ek in ("leader_email","leader_of_project_email","lead_email"):
+            if p.get(ek):
+                agg["leader_emails"].add(str(p.get(ek)).lower())
+        # team members and assigned emails
+        members = p.get("team_members") or []
+        if isinstance(members, list):
+            for m in members:
+                if isinstance(m, dict):
+                    # try email then name/role
+                    email = m.get("email") or m.get("mail")
+                    if email:
+                        agg["team_emails"].add(str(email).lower())
+                    # join human tokens
+                    agg["team"] += " " + " ".join([str(v) for v in m.values() if v])
+                else:
+                    agg["team"] += " " + str(m)
+        # assigned_to_emails
+        for k in ("assigned_to_emails","assigned_to","assigned"):
+            val = p.get(k)
+            if isinstance(val, (list,tuple)):
+                for e in val:
+                    if e:
+                        agg["team_emails"].add(str(e).lower())
+            elif val:
+                agg["team_emails"].add(str(val).lower())
+        # tech
+        for tk in ("tech_stack","tech_stack_custom","technology"):
+            tval = p.get(tk)
+            if tval:
+                if isinstance(tval, list):
+                    agg["tech"] += " " + " ".join([str(x) for x in tval])
+                else:
+                    agg["tech"] += " " + str(tval)
+        # client and description
+        if p.get("client_name"):
+            agg["client"] += " " + str(p.get("client_name"))
+        if p.get("project_description"):
+            agg["description"] += " " + str(p.get("project_description"))
+        if p.get("project_scope"):
+            agg["description"] += " " + str(p.get("project_scope"))
+    # normalize strings
+    for k in ("name","status","timeline","leader","team","tech","client","description"):
+        agg[k] = _normalize_for_compare(agg[k])
+    agg["leader_emails"] = set(e for e in agg["leader_emails"] if e)
+    agg["team_emails"] = set(e for e in agg["team_emails"] if e)
+    return agg
+
+# synonyms for status canonicalization
+_STATUS_CANONICAL = {
+    "in progress": ["in progress","in-progress","ongoing","started","active"],
+    "not started": ["not started","pending","planned","yet to start"],
+    "completed": ["completed","done","finished","delivered"],
+    "on hold": ["on hold","paused","blocked"]
+}
+
+def _match_status(reply_clean: str, proj_status_clean: str) -> float:
+    """
+    Return score 0..100 for status matching.
+    Exact canonical match -> 100, synonym -> 95, token overlap -> ratio*100 fallback.
+    """
+    if not reply_clean or not proj_status_clean:
+        return 0.0
+    # canonicalize both into tokens
+    r = reply_clean.lower()
+    p = proj_status_clean.lower()
+    # direct substring
+    if r in p or p in r:
+        return 100.0
+    # check synonyms
+    for can, syns in _STATUS_CANONICAL.items():
+        if any(s in p for s in syns) and any(s in r for s in syns):
+            return 95.0
+    # token overlap fallback
+    rtoks = _token_set(r)
+    ptoks = _token_set(p)
+    if not ptoks:
+        return 0.0
+    overlap = len(rtoks & ptoks) / max(1, len(ptoks))
+    return round(overlap * 100, 2)
+
+def _clean_reply_text(text: str) -> str:
+    """
+    Remove headings, markdown bullets, repeated whitespace, punctuation noise.
+    Returns a lowercase cleaned string suitable for substring/token matching.
+    """
     if not text:
         return ""
     s = text
-    # remove common section headings (SUMMARY, DETAILS, INFORMATION, etc.)
-    s = re.sub(r"(?mi)^(summary|details|information|info|result|solution)\s*$", "", s)
-    # remove lines of all-caps short headings
-    s = re.sub(r"(?m)^[A-Z\s]{3,50}\n", "", s)
-    # remove markdown bullets and extra whitespace
+    # remove common section headings words on their own lines
+    s = re.sub(r"(?mi)^(summary|details|information|info|result|solution|overview|response)\s*$", "", s, flags=re.MULTILINE)
+    # remove lines that are short all-caps headings
+    s = re.sub(r"(?m)^[A-Z\s]{2,60}\n", "", s)
+    # remove bullets and markdown characters
     s = re.sub(r"[-•*]{1,2}\s+", " ", s)
-    s = re.sub(r"\n+", " ", s)
-    s = re.sub(r"\s{2,}", " ", s)
-    return s.strip().lower()
+    # remove parentheses content (often email after name)
+    s = re.sub(r"\([^)]*\)", " ", s)
+    # replace newlines with spaces and collapse whitespace
+    s = re.sub(r"\s+", " ", s).strip()
+    return s.lower()
 
 def _extract_project_fields(project_data: list):
     """
@@ -647,118 +789,139 @@ def _extract_project_fields(project_data: list):
     agg["team_emails"] = set(e for e in agg["team_emails"] if e)
     return agg
 
-def verify_response_final(query: str, reply: str, project_data: list, debug: bool = False) -> dict:
+def verify_response_final(query: str, reply: str, project_data: list, debug: bool=False) -> dict:
     """
-    Field-aware verifier with strong exact/substring bonuses for short answers.
-    Returns: {"alignment_score": float or None, "trust_level": str, "recommendation": str}
+    Field-prioritised strict verifier that returns realistic scores for short correct replies.
+    Returns {"alignment_score": float or None, "trust_level": str, "recommendation": str}
     """
     try:
         if not project_data or not isinstance(project_data, list) or len(project_data) == 0:
-            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No project data."}
+            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No project data available."}
 
         q = (query or "").strip().lower()
-        raw_reply = (reply or "").strip()
-        # clean reply before comparing to avoid headings and metadata
-        r = _clean_text_for_compare(raw_reply)
+        # Use cleaned reply for comparisons
+        reply_clean = _clean_reply_text(reply)
+        reply_norm = _normalize_for_compare(reply_clean)
 
-        agg = _extract_project_fields(project_data)
+        agg = _extract_project_agg(project_data)
         if debug:
-            print("🔍 verify debug - agg fields:", {k: (v[:120] + "..." if isinstance(v,str) and len(v)>120 else v) for k,v in agg.items()})
+            print("verify debug agg:", {k:(v[:120]+"..." if isinstance(v,str) and len(v)>120 else v) for k,v in agg.items()})
 
-        # detect target field from query (priority order)
-        field_priorities = []
-        if any(k in q for k in ["leader", "lead", "project lead", "project leader"]):
-            field_priorities.append("leader")
-        if any(k in q for k in ["team", "member", "members"]):
-            field_priorities.append("team")
-        if any(k in q for k in ["start date","start", "end date","end","timeline","deadline"]):
-            field_priorities.append("timeline")
-        if any(k in q for k in ["project name","name of project","project title","project name"]):
-            field_priorities.append("name")
-        if any(k in q for k in ["tech", "stack", "technology", "framework"]):
-            field_priorities.append("tech")
-        if any(k in q for k in ["client", "customer"]):
-            field_priorities.append("client")
-        if any(k in q for k in ["status", "progress", "phase"]):
-            field_priorities.append("status")
-        # fallback: if project keywords appear, prioritize description/name
-        if not field_priorities:
-            if any(k in q for k in ["project", "project details", "project info", "what is this project"]):
-                field_priorities.append("description")
+        # Determine field intent (priority)
+        detected = []
+        if any(kw in q for kw in ["project name","project title","name of the project","what is the project name","project name"]):
+            detected.append("name")
+        if any(kw in q for kw in ["status","what is the status","project status","is the project completed","progress","phase"]):
+            detected.append("status")
+        if any(kw in q for kw in ["start date","end date","timeline","when does","when will","start","end","deadline"]):
+            detected.append("timeline")
+        if any(kw in q for kw in ["who is the leader","project leader","who is the lead","project lead","leader"]):
+            detected.append("leader")
+        if any(kw in q for kw in ["team members","team","members","who are the team","give my team"]):
+            detected.append("team")
+        if any(kw in q for kw in ["tech stack","tech","technology","framework","tools","languages"]):
+            detected.append("tech")
+        # fallback: if query contains 'project' treat as description/name check
+        if not detected:
+            if "project" in q:
+                detected.append("description")
             else:
-                field_priorities.append("description")  # default fallback
+                detected.append("description")
 
         scores = []
+        for fld in detected:
+            proj_field_text = agg.get(fld, "")
+            if fld == "name":
+                # exact or substring
+                if reply_norm and proj_field_text and (reply_norm == proj_field_text or reply_norm in proj_field_text or proj_field_text in reply_norm):
+                    scores.append(99.0)
+                    continue
+                # token overlap strong boost for short replies
+                rts = _token_set(reply_norm)
+                pts = _token_set(proj_field_text)
+                if rts and pts:
+                    overlap = len(rts & pts)
+                    if len(rts) <= 6 and overlap >= 1:
+                        scores.append(min(99.0, 85.0 + overlap*5.0))
+                        continue
+                # fallback similarity
+                sim = SequenceMatcher(None, reply_norm, proj_field_text).ratio()
+                scores.append(round(sim * 70, 2))
 
-        # helper to compute token overlap ratio
-        def token_ratio(a, b):
-            atoks = set(_tokenize(a))
-            btoks = set(_tokenize(b))
-            if not btoks:
-                return 0.0
-            return len(atoks & btoks) / max(1, len(btoks))
+            elif fld == "status":
+                # compare cleaned reply to proj status
+                score = _match_status(reply_norm, agg.get("status",""))
+                scores.append(score)
 
-        for fld in field_priorities:
-            proj_text = agg.get(fld, "") or ""
-            if not proj_text:
-                scores.append(None)
-                continue
+            elif fld == "leader":
+                # email exact or name overlap
+                reply_emails = set(e.lower() for e in EMAIL_RE.findall(reply))
+                if reply_emails and agg.get("leader_emails"):
+                    if reply_emails & agg["leader_emails"]:
+                        scores.append(99.0); continue
+                # token overlap with leader name
+                rts = _token_set(reply_norm)
+                pts = _token_set(agg.get("leader",""))
+                if rts and pts and len(rts & pts) >= 1:
+                    # short reply strong
+                    scores.append(min(98.0, 85.0 + len(rts & pts)*5.0)); continue
+                # fallback similarity
+                sim = SequenceMatcher(None, reply_norm, agg.get("leader","")).ratio()
+                scores.append(round(sim * 70, 2))
 
-            # --- exact / substring checks (strong) ---
-            # direct substring match (case-insensitive)
-            if r and r in proj_text:
-                if debug: print(f"🔹 exact substr match for field '{fld}' -> 99")
-                scores.append(99.0)
-                continue
+            elif fld == "team":
+                # check for team_emails present
+                reply_emails = set(e.lower() for e in EMAIL_RE.findall(reply))
+                if reply_emails and agg.get("team_emails"):
+                    if reply_emails & agg["team_emails"]:
+                        scores.append(98.0); continue
+                # token coverage of team members names
+                pts = _token_set(agg.get("team",""))
+                rts = _token_set(reply_norm)
+                if pts:
+                    coverage = len(rts & pts) / max(1, len(pts))
+                    scores.append(round(min(1.0, coverage) * 100, 2)); continue
+                scores.append(0.0)
 
-            # emails present -> strong match
-            reply_emails = set(e.lower() for e in EMAIL_RE.findall(raw_reply))
-            if fld == "leader" and reply_emails and agg.get("leader_emails"):
-                if reply_emails & agg["leader_emails"]:
-                    scores.append(99.0); continue
-            if fld == "team" and reply_emails and agg.get("team_emails"):
-                if reply_emails & agg["team_emails"]:
-                    scores.append(98.0); continue
+            elif fld == "tech":
+                pts = _token_set(agg.get("tech",""))
+                rts = _token_set(reply_norm)
+                if pts:
+                    coverage = len(rts & pts) / max(1, len(pts))
+                    scores.append(round(min(1.0, coverage) * 100, 2)); continue
+                scores.append(0.0)
 
-            # name token overlap (short reply benefit)
-            reply_tokens = set(_tokenize(r))
-            proj_tokens = set(_tokenize(proj_text))
-            overlap = len(reply_tokens & proj_tokens)
-
-            if overlap >= 1:
-                # short reply (<= 8 tokens) with overlap -> high score
-                if len(reply_tokens) <= 8:
-                    score = min(98.0, 85.0 + overlap * 4.0)
-                    if debug: print(f"🔹 short overlap for field '{fld}' ->", score)
-                    scores.append(score); continue
-                # longer reply -> moderate boost
-                ratio = token_ratio(r, proj_text)
-                score = round(min(1.0, (0.6 * SequenceMatcher(None, r, proj_text).ratio()) + (0.4 * ratio)) * 100, 2)
-                if debug: print(f"🔹 longer overlap/sim for field '{fld}' ->", score)
-                scores.append(score); continue
-
-            # timeline special: try numeric date tokens
-            if fld == "timeline":
-                # extract YYYY or YYYY-MM-DD or 'november 6 2025' like patterns
-                def find_year_like(s):
-                    m = re.search(r"\b\d{4}\b", s)
+            elif fld == "timeline":
+                # check year or date tokens
+                def find_year(s):
+                    m = re.search(r"\b(20\d{2}|\d{4})\b", s)
                     return m.group(0) if m else None
-                proj_year = find_year_like(proj_text)
-                rep_year = find_year_like(raw_reply)
+                proj_year = find_year(agg.get("timeline",""))
+                rep_year = find_year(reply)
                 if proj_year and rep_year and proj_year == rep_year:
-                    scores.append(92.0); continue
+                    scores.append(95.0); continue
+                # if reply contains the proj start date substring
+                if agg.get("timeline","") and reply_norm and reply_norm in agg.get("timeline",""):
+                    scores.append(98.0); continue
+                # fallback token ratio
+                pts = _token_set(agg.get("timeline",""))
+                rts = _token_set(reply_norm)
+                if pts:
+                    coverage = len(rts & pts) / max(1, len(pts))
+                    scores.append(round(coverage * 100, 2)); continue
+                scores.append(0.0)
 
-            # fallback: similarity and token ratio
-            sim = SequenceMatcher(None, r, proj_text).ratio()
-            ratio = token_ratio(r, proj_text)
-            final = round(min(1.0, (0.65 * sim) + (0.35 * ratio)) * 100, 2)
-            if debug: print(f"🔹 fallback sim/ratio for '{fld}' -> sim={sim:.3f}, ratio={ratio:.3f}, score={final}")
-            scores.append(final)
+            else:  # description fallback
+                sim = SequenceMatcher(None, reply_norm, agg.get("description","")).ratio()
+                pts = _token_set(agg.get("description",""))
+                rts = _token_set(reply_norm)
+                token_ratio = len(rts & pts) / max(1, len(pts)) if pts else 0.0
+                scores.append(round(min(1.0, (0.65*sim + 0.35*token_ratio))*100, 2))
 
-        # aggregate: prefer highest valid score among priorities
+        # aggregate: prefer highest (field-priority)
         valid = [s for s in scores if s is not None]
         if not valid:
-            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No matching project fields."}
+            return {"alignment_score": None, "trust_level": "No Data", "recommendation": "No relevant project fields."}
         final_score = round(max(valid), 2)
 
         if final_score >= 90:
@@ -766,17 +929,16 @@ def verify_response_final(query: str, reply: str, project_data: list, debug: boo
             rec = "Accurate and consistent with project data."
         elif final_score >= 70:
             trust = "Moderate ⚠️"
-            rec = "Partially aligned; review small details."
+            rec = "Partially aligned; verify minor details."
         else:
             trust = "Low ❌"
-            rec = "May not align; please verify against project data."
+            rec = "May not align — please verify."
 
         return {"alignment_score": final_score, "trust_level": trust, "recommendation": rec}
 
     except Exception as e:
-        print("⚠ verify_response_final error:", e)
+        print("⚠ verify_response_strict error:", e)
         return {"alignment_score": None, "trust_level": "Error", "recommendation": "Verification error."}
-
 # =============================================================================================================================================================
 # ============================================================announcements functions===================================================================================
 # ==============================================================================================================================================================
@@ -1126,10 +1288,13 @@ def save_memory(memory):
         json.dump(memory, f, indent=2)
 
 def update_user_memory(user_input, memory):
-    match = re.search(r"\b(?:my name is|i am|i'm|this is|this side)\s+(\w+)", user_input, re.IGNORECASE)
+    # Only catch explicit name introductions
+    match = re.search(r"\b(?:my name is|this is|this side)\s+([A-Za-z][A-Za-z\s]{1,40})", user_input, re.IGNORECASE)
     if match:
-        memory["user_name"] = match.group(1).capitalize()
+        memory["user_name"] = match.group(1).strip().title()
+        print(f"✅ Stored user name: {memory['user_name']}")
     return memory
+
 
 # ---------------- Document Processing ----------------
 def load_documents():
@@ -1922,6 +2087,43 @@ def get_user_project():
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route("/get_chat_id", methods=["POST"])
+def get_chat_id():
+    data = request.get_json(force=True)
+    project_id = data.get("project_id")
+    email = data.get("email")
+
+    if not project_id or not email:
+        return jsonify({"error": "Missing data"}), 400
+
+    try:
+        user = supabase.table("user_perms").select("id").eq("email", email).execute()
+        user_id = user.data[0]["id"] if user.data else None
+
+        # Check if already exists
+        existing = (
+            supabase.table("chat_id_counters")
+            .select("chat_id")
+            .eq("project_id", project_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if existing.data:
+            return jsonify({"chat_id": existing.data[0]["chat_id"]})
+
+        # Create new chat_id if not exists
+        new_chat_id = f"{email}_{project_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        supabase.table("chat_id_counters").insert({
+            "project_id": project_id,
+            "chat_id": new_chat_id,
+            "user_id": user_id
+        }).execute()
+        return jsonify({"chat_id": new_chat_id})
+
+    except Exception as e:
+        print("❌ Error fetching chat_id:", e)
+        return jsonify({"chat_id": "default"})
 
 @app.route("/debug_projects", methods=["GET"])
 def debug_projects():
@@ -2265,8 +2467,7 @@ def work_chat():
         if not user_input:
             return jsonify({"reply": random.choice(CONFUSION_RESPONSES)})
 
-        print_last_conversations(user_email, count=5)
-
+    
         # -------------------- 🔹 Fetch user facts from Supabase --------------------
         user_facts = get_user_facts(user_email)
         if "name" in user_facts:
@@ -2324,7 +2525,7 @@ def work_chat():
                 parsed = {"operation": "select", "table": "projects", "fields": ["*"], "filters": filters}
                 db_answer = query_supabase(parsed)
             except Exception as e:
-                print("❌ DB query error:", e)
+                print("❌ DB query error:",e)
 
         # -------------------- Document Lookup (RAG) --------------------
         try:
@@ -2332,7 +2533,12 @@ def work_chat():
         except Exception as e:
             print("❌ Document lookup error:", e)
                     
-        chat_id = data.get("chat_id") or session.get("chat_id", "default")
+        # Generate a persistent chat_id per user + project if not provided
+        chat_id = (
+        data.get("chat_id")
+        or f"{session.get('user_email', 'guest')}_{data.get('project_id', 'general')}")
+        session["chat_id"] = chat_id  # store in session for next time
+
         project_id = data.get("project_id") or session.get("project_id", "default")
         session["chat_id"] = chat_id
         session["project_id"] = project_id
@@ -2367,6 +2573,20 @@ def work_chat():
         save_chat_message(user_email, "assistant", reply, project_id, chat_id)
 
         final_reply = format_response(user_input, fallback=reply)
+                    # -------------------- ✅ Run Alignment System Only for Technical Queries --------------------
+        try:
+            project_data = supabase.table("projects").select("*").execute().data
+            if is_technical_prompt(user_input, project_data):
+                check = verify_response_final(user_input, final_reply, project_data, debug=False)
+      
+                if check.get("alignment_score") is not None:
+                     final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
+                else:
+                    print("ℹ️ Skipped accuracy display — no valid score.")
+            else:
+                print("ℹ️ Skipped alignment — Non-technical/general query.")
+        except Exception as e:
+            print(f"⚠️ Alignment system failed: {e}")
         return jsonify({"reply": final_reply})
 
     except Exception as e:
@@ -2388,11 +2608,21 @@ def dual_chat():
 
         # -------------------- Extract session/user data --------------------
         user_input = (data.get("query") or data.get("message") or "").strip()
-        project_id = data.get("project_id")
+        project_id = data.get("project_id") or "default"
+        chat_id = data.get("chat_id") or session.get("chat_id")
+        if not chat_id:
+            chat_id = f"{user_email}_{project_id or 'default'}"
         session["project_uuid"] = project_id
+        session["chat_id"] = chat_id
         user_email = session.get("user_email")
         user_name = session.get("user_name", "")
         user_role = get_user_role(user_email)
+        
+        
+        
+        history = load_chat_history(user_email, project_id, chat_id, limit=15)
+        print(f"[DEBUG] Final chat_id resolved: {chat_id}")
+
 
         if not project_id:
             return jsonify({"reply": "⚠️ No project selected."})
@@ -2402,7 +2632,9 @@ def dual_chat():
             return jsonify({"reply": random.choice(CONFUSION_RESPONSES)})
 
 
-        print_last_conversations(user_email, count=5)
+        # print_last_conversations(user_email, count=5)
+        
+
 
         # -------------------- Handle greetings first --------------------
         greeting_response = handle_greetings(user_input)
