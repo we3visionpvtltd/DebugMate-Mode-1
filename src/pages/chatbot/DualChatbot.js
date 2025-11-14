@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useContext, useMemo } from 'react';
 import { Card } from 'react-bootstrap';
 import { FaComments, FaPaperclip, FaPaperPlane } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import './DualChatbot.css';
+import './WorkChat.css';
 import { MyContext } from '../../App';
 import { generateCustomUUID } from '../../utils/customUUID';
 
@@ -21,7 +21,7 @@ const DualChatbot = () => {
     projectName: null
   });
   const chatEndRef = useRef(null);
-  const [isTyping, setIsTyping] = useState(false);  
+  const [isTyping, setIsTyping] = useState(false);
 
   const context = useContext(MyContext);
   const userEmail = context.userEmail;
@@ -261,9 +261,7 @@ useEffect(() => {
     // Append user message immediately
     const updatedMessages = [...generalMessages, newMessage];
     setGeneralMessages(updatedMessages);
-    
-    
-
+  
     // Generate session ID if this is the first message
     const sessionId = currentSession.id || `chat_${Date.now()}`;
     setCurrentSession(prev => ({
@@ -274,16 +272,18 @@ useEffect(() => {
     setIsTyping(true);
   
     try {
+      
       const chatId = `${userEmail}_${currentSession.projectId || 'general'}`;
       const response = await fetch('http://localhost:8000/chat/dual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',"Authorization": "Bearer debugmate123"   },
         credentials: 'include',
-        body: JSON.stringify({
+            body: JSON.stringify({
     message: newMessage.content,
     chat_type: currentSession.projectId ? 'project' : 'general',
     project_id: currentSession.projectId || 'general',
-    chat_id: chatId}), });
+    chat_id: chatId }),
+      });
   
       const data = await response.json();
       const botReply = { role: 'assistant', content: data.reply || ' No reply from server' };
@@ -364,10 +364,10 @@ useEffect(() => {
   };
 
   return (
-    <div className={`dual-layout${!context.istheme ? ' dark-mode' : ''}`}>
+    <div className={`work-layout`}>
       {/* Main Chat Area */}
-      <div className={`dual-container${historyOpen ? ' with-history' : ' full-width'}`}>
-        <Card className="dual-card">
+      <div className={`work-container${historyOpen ? ' with-history' : ' full-width'}`}>
+        <Card className="work-card">
           <Card.Header 
             className="d-flex align-items-center" 
             style={{ 
@@ -380,7 +380,7 @@ useEffect(() => {
             <span>Dual Chat Assistant</span>
           </Card.Header>
 
-          <div className="dual-banner" style={{
+          <div className="work-banner" style={{
             background: 'linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B)',
             color: 'white',
             padding: '12px 20px',
@@ -400,9 +400,9 @@ useEffect(() => {
             </span>
           </div>
 
-          <Card.Body className="dual-history" id="chatBox">
+          <Card.Body className="work-history" id="chatBox">
             {generalMessages.map((msg, idx) => (
-              <div key={idx} className={`dual-bubble ${msg.role}`}>
+              <div key={idx} className={`work-bubble ${msg.role}`}>
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
             ))}
@@ -417,7 +417,7 @@ useEffect(() => {
           </Card.Body>
 
           <Card.Footer>
-            <div className="dual-input-area">
+            <div className="work-input-area">
               <div className="input-wrapper">
                 <button className="attach-btn"><FaPaperclip /></button>
                 <input
@@ -437,25 +437,25 @@ useEffect(() => {
       </div>
 
       {/* History Panel */}
-      <div className={`dual-history-panel${historyOpen ? '' : ' closed'}`}>
-        <div className="dual-panel-header">
+      <div className={`work-history-panel${historyOpen ? '' : ' closed'}`}>
+        <div className="work-panel-header">
           <h3>Project Chats</h3>
         </div>
-        <div className="dual-history-list">
+        <div className="work-history-list">
           {projectChats.length === 0 ? (
             <p style={{ color: '#888', fontStyle: 'italic'}}>No project chats found</p>
           ) : (
             projectChats.map(chat => (
               <div
                 key={chat.id}
-                className={`dual-history-item${generalMessages === chat.fullChat ? ' selected' : ''}`}
+                className={`work-history-item${generalMessages === chat.fullChat ? ' selected' : ''}`}
                 onClick={() => handleHistoryClick(chat)}
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0, marginTop: '-2px' }}>
                       <div 
-                        className="dual-history-type-badge" 
+                        className="work-history-type-badge" 
                         style={{ 
                           color: 'rgb(51, 51, 51)',
                           fontWeight: 500,
@@ -471,7 +471,7 @@ useEffect(() => {
                         {chat.projectName || 'Unnamed Project'}
                       </div>
                       <button
-                        className="dual-history-delete-btn"
+                        className="work-history-delete-btn"
                         onClick={e => { e.stopPropagation(); handleHistoryDelete(chat.id); }}
                         style={{ 
                           marginLeft: '8px', 
@@ -492,11 +492,11 @@ useEffect(() => {
                     </div>
                   )}
                   {chat.summary && (
-                    <div className="dual-history-summary" style={{ margin: '8px 0', color: '#444' }}>
+                    <div className="work-history-summary" style={{ margin: '8px 0', color: '#444' }}>
                       {chat.summary.length > 80 ? `${chat.summary.substring(0, 80)}...` : chat.summary}
                     </div>
                   )}
-                  <div className="dual-history-meta">
+                  <div className="work-history-meta">
                     {chat.messageCount && (
                       <small style={{ 
                         display: 'inline-block', 
@@ -520,26 +520,8 @@ useEffect(() => {
 
       {/* History Toggle Button */}
       <button
-        className="dual-history-toggle-btn"
+        className="work-history-toggle-btn"
         onClick={() => setHistoryOpen(prev => !prev)}
-        style={{
-          position: 'fixed',
-          right: '3px',
-          top: '12%',
-          transform: 'translateY(-50%)',
-          width: '44px',
-          height: '44px',
-          background: 'linear-gradient(135deg, #A80C4C, #090939, #421256, #531C9B)',
-          color: 'white',
-          border: '1px solid rgba(83, 28, 155, 0.3)',
-          borderRadius: '50%',
-          boxShadow: '0 4px 12px rgba(83, 28, 155, 0.3)',
-          cursor: 'pointer',
-          zIndex: '1000',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          fontSize: '16px',
-          fontWeight: '600',
-        }}
       >
         {historyOpen ? '→' : '←'}
       </button>
