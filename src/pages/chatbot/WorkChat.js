@@ -555,16 +555,22 @@ const sendMessage = async () => {
                       ✕
                     </button>
                   </div>
-                  <div className="work-history-session-name">
-                    {chat.sessionName || `Session ${new Date(chat.timestamp).toLocaleDateString()}`}
-                  </div>
                   {chat.projectId && chat.projectId !== 'Default' && (
-                    <div className="work-history-id">ID: {chat.projectId}</div>
+                    <small style={{ color: '#666', fontSize: '10px' }}>ID: {chat.projectId}</small>
                   )}
-                  <span className="work-history-summary">{chat.summary}</span>
+                  <div className="work-history-summary" style={{ margin: '8px 0', color: '#444' }}>
+                    {chat.summary && chat.summary.length > 80 ? `${chat.summary.substring(0, 80)}...` : chat.summary}
+                  </div>
                   <div className="work-history-meta">
                     {chat.messageCount && (
-                      <small className="work-history-count">{chat.messageCount} messages</small>
+                      <small style={{ display: 'inline-block', color: '#666', fontSize: '10px', marginRight: '10px' }}>
+                        {chat.messageCount} messages
+                      </small>
+                    )}
+                    {chat.timestamp && (
+                      <small style={{ color: '#666', fontSize: '10px' }}>
+                        {new Date(chat.timestamp).toLocaleString()}
+                      </small>
                     )}
                   </div>
                 </div>
