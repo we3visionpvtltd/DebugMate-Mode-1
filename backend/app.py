@@ -19,6 +19,7 @@ from datetime import datetime
 # ---------------- Load Environment Variables ----------------
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+print("OPENROUTER_API_KEY:", OPENROUTER_API_KEY)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 FRONTEND_API_KEY = os.getenv("FRONTEND_API_KEY")
@@ -2155,12 +2156,22 @@ def common_chat():
         print("📥 Incoming payload:", payload)
 
         user_query = (payload.get("query") or payload.get("message") or "").strip()
+        normalized_query = call_openrouter([
+            {"role": "system", "content": "Rewrite the user's query into a clear natural-language question."},
+            {"role": "user", "content": user_query}
+        ], temperature=0, max_tokens=50) or user_query
+
         project_id = payload.get("project_id") or "default"
 
         # -------------------------------
         # 0. Auth checks
         # -------------------------------
         user_email = session.get("user_email")
+        chat_id = (
+            payload.get("chat_id")
+            or f"{session.get('user_email', 'guest')}_{project_id}")
+        session["chat_id"] = chat_id
+        session["project_id"] = project_id
         user_name = session.get("user_name", "")
         if not user_email:
             return jsonify({"reply": "❌ Please login first. Session email not found."}), 401
@@ -2219,7 +2230,7 @@ def common_chat():
 # -------------------------------
         # 4. Conversation history
         # -------------------------------
-        conv_hist = load_chat_history(user_email, limit=15)
+        conv_hist = load_chat_history(user_email,project_id,chat_id, limit=15)
 
         messages = [
             {"role": "system", "content": system_message},
@@ -2236,8 +2247,9 @@ def common_chat():
         # 6. Save chat + memory
         # -------------------------------
         remember(user_email, user_query)
-        save_chat_message(user_email, "user", user_query)
-        save_chat_message(user_email, "assistant", reply)
+        save_chat_message(user_email, "user", user_query, project_id, chat_id)
+        save_chat_message(user_email, "assistant", reply, project_id, chat_id)
+
 
         return jsonify({
             "reply": reply,
@@ -2747,7 +2759,7 @@ def dual_chat():
         
 # if __name__ == "_main_":
 #     import os
-#     port = int(os.environ.get("PORT", 8000))  # Render provides PORT env
+#     port = int(os.environ.get("PORT", 8000))  
 #     app.run(host="0.0.0.0", port=port)
 
 
