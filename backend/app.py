@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify, session
 from flask_session import Session
 import os, requests, re, json, random, traceback
 from dotenv import load_dotenv
-from security import ChatSecurity, encrypt_chat_message, decrypt_chat_message
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -33,34 +32,34 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 # ---------------- Initialize Clients ----------------
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config["SESSION_PERMANENT"] = False
-CORS(app, 
-    supports_credentials=True,
-    origins=["http://localhost:3000", "http://localhost:5173"])
-Session(app)
 # app = Flask(__name__)
 # app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
 # app.config['SESSION_TYPE'] = 'filesystem'
 # app.config["SESSION_PERMANENT"] = False
-
-# CORS(
-#     app,
-#     resources={r"/*": {"origins": "https://debugmate.we3vision.com/"}},
-#     supports_credentials=True,
-#     expose_headers=["Authorization"],
-#     allow_headers=["Content-Type", "Authorization"]
-# )
-# app.config.update(
-#     SESSION_COOKIE_SAMESITE="None",  # allows cross-domain usage
-#     SESSION_COOKIE_SECURE=True       # must be HTTPS
-# )
 # CORS(app, 
 #     supports_credentials=True,
-#     origins=[ "https://debugmate.we3vision.com/"])
+#     origins=["http://localhost:3000", "http://localhost:5173"])
 # Session(app)
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hZHhyZXhwZmNwbm9jbnNqamJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NjAwNzMsImV4cCI6MjA2NzAzNjA3M30.5T0hxDZabIJ_mTrtKpra3beb7OwnnvpNcUpuAhd28Mw'")
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config["SESSION_PERMANENT"] = False
+
+CORS(
+    app,
+    resources={r"/*": {"origins": "https://debugmate.we3vision.com/"}},
+    supports_credentials=True,
+    expose_headers=["Authorization"],
+    allow_headers=["Content-Type", "Authorization"]
+)
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",  # allows cross-domain usage
+    SESSION_COOKIE_SECURE=True       # must be HTTPS
+)
+CORS(app, 
+    supports_credentials=True,
+    origins=[ "https://debugmate.we3vision.com/"])
+Session(app)
 
 def verify_api_key():
     token = request.headers.get("Authorization")
@@ -102,20 +101,29 @@ def is_technical_prompt(query, project_data):
     return any(word in q for word in project_keywords.union(tech_terms))
 
 
+def summarize_history(history):
+    history_summary = summarize_history(history)
+    for h in history:
+        if h["role"] == "assistant":
+            # Do not give full answers, just label them
+            history_summary.append("Assistant responded earlier about a similar topic.")
+        else:
+            history_summary.append(f"User asked: {h['content'][:60]}...")
+    return "\n".join(history_summary)
 
 
-def generate_alignment_line(user_query: str, response: str, project_data: list) -> str:
-    """
-    Returns one-line accuracy result for technical queries.
-    """
-    try:
-        result = verify_response_final(user_query, response, project_data)
-        score = result.get("alignment_score", 0)
-        trust = result.get("trust_level", "Review 🚫")
-        return f"\n\n🔹 Accuracy: {score} ({trust})"
-    except Exception as e:
-        print("⚠ Accuracy check failed:", e)
-        return ""
+# def generate_alignment_line(user_query: str, response: str, project_data: list) -> str:
+#     """
+#     Returns one-line accuracy result for technical queries.
+#     """
+#     try:
+#         result = verify_response_final(user_query, response, project_data)
+#         score = result.get("alignment_score", 0)
+#         trust = result.get("trust_level", "Review 🚫")
+#         return f"\n\n🔹 Accuracy: {score} ({trust})"
+#     except Exception as e:
+#         print("⚠ Accuracy check failed:", e)
+#         return ""
 # ---------------- Persistent Chat Memory ----------------
 def get_user_id(email: str) -> str | None:
     """Fetch user id from Supabase using email."""
@@ -140,7 +148,9 @@ def save_chat_message(user_email: str, role: str, content: str,
     chat_id = chat_id or session.get("chat_id", "default")
     session.setdefault("chat_history", [])
     session["chat_history"].append({"role": role, "content": content})
-    session["chat_history"] = session["chat_history"][-10:]
+    # do NOT trim session history (we use Supabase history instead)
+    session["chat_history"] = session["chat_history"]
+
 
 
     try:
@@ -1167,7 +1177,10 @@ def detect_intent(user_query: str) -> str:
 
         result = call_openrouter([
             {"role": "system", "content": "You are an intent classification engine."},
-            {"role": "user", "content": intent_prompt}
+            {"role": "user", "content": intent_prompt},
+           { "role": "system",
+            "content": "Never repeat the exact same answer from history. Always generate a fresh response using updated info."
+           }
         ], temperature=0)
 
         if result:
@@ -1937,42 +1950,42 @@ def maybe_greeting(text):
 
 
 
-# ---------------- Secure Messaging Endpoint ----------security-------------------
+# # ---------------- Secure Messaging Endpoint ----------security-------------------
 
-@app.route('/api/secure-message', methods=['POST'])
-def secure_message():
-    """
-    Endpoint for sending and receiving encrypted messages.
-    Request: { "action": "encrypt|", "message": "..." }
-    """
-    try:
-        data = request.get_json()
-        action = data.get('action', '').lower()
-        message = data.get('message', '')
+# @app.route('/api/secure-message', methods=['POST'])
+# def secure_message():
+#     """
+#     Endpoint for sending and receiving encrypted messages.
+#     Request: { "action": "encrypt|", "message": "..." }
+#     """
+#     try:
+#         data = request.get_json()
+#         action = data.get('action', '').lower()
+#         message = data.get('message', '')
         
-        if not message:
-            return jsonify({"error": "Message is required"}), 400
+#         if not message:
+#             return jsonify({"error": "Message is required"}), 400
             
-        if action == 'encrypt':
-            # Encrypt the message
-            encrypted_data = encrypt_chat_message(message)
-            return jsonify({
-                "status": "encrypted",
-                "data": encrypted_data
-            })
-        else:
-            # Decrypt the message
-            try:
-                decrypted = decrypt_chat_message(message if isinstance(message, dict) else json.loads(message))
-                return jsonify({
-                    "status": "decrypted",
-                    "data": decrypted
-                })
-            except Exception as e:
-                return jsonify({"error": "Decryption failed. Invalid message format or key."}), 400
+#         if action == 'encrypt':
+#             # Encrypt the message
+#             encrypted_data = encrypt_chat_message(message)
+#             return jsonify({
+#                 "status": "encrypted",
+#                 "data": encrypted_data
+#             })
+#         else:
+#             # Decrypt the message
+#             try:
+#                 decrypted = decrypt_chat_message(message if isinstance(message, dict) else json.loads(message))
+#                 return jsonify({
+#                     "status": "decrypted",
+#                     "data": decrypted
+#                 })
+#             except Exception as e:
+#                 return jsonify({"error": "Decryption failed. Invalid message format or key."}), 400
                 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+        # return jsonify({"error": str(e)}), 500
 
 # ---------------- Routes ----------------
 
@@ -2591,12 +2604,12 @@ def work_chat():
             if is_technical_prompt(user_input, project_data):
                 check = verify_response_final(user_input, final_reply, project_data, debug=False)
       
-                if check.get("alignment_score") is not None:
-                     final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
-                else:
-                    print("ℹ️ Skipped accuracy display — no valid score.")
-            else:
-                print("ℹ️ Skipped alignment — Non-technical/general query.")
+            #     if check.get("alignment_score") is not None:
+            #          final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
+            #     else:
+            #         print("ℹ️ Skipped accuracy display — no valid score.")
+            # else:
+            #     print("ℹ️ Skipped alignment — Non-technical/general query.")
         except Exception as e:
             print(f"⚠️ Alignment system failed: {e}")
         return jsonify({"reply": final_reply})
@@ -2742,12 +2755,12 @@ def dual_chat():
             if is_technical_prompt(user_input, project_data):
                 check = verify_response_final(user_input, final_reply, project_data, debug=False)
       
-                if check.get("alignment_score") is not None:
-                     final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
-                else:
-                    print("ℹ️ Skipped accuracy display — no valid score.")
-            else:
-                print("ℹ️ Skipped alignment — Non-technical/general query.")
+            #     if check.get("alignment_score") is not None:
+            #          final_reply += f"\n\n🔹 Accuracy: {check['alignment_score']} ({check['trust_level']})"
+            #     else:
+            #         print("ℹ️ Skipped accuracy display — no valid score.")
+            # else:
+            #     print("ℹ️ Skipped alignment — Non-technical/general query.")
         except Exception as e:
             print(f"⚠️ Alignment system failed: {e}")
 
@@ -2759,7 +2772,7 @@ def dual_chat():
         
 # if __name__ == "_main_":
 #     import os
-#     port = int(os.environ.get("PORT", 8000))  
+#     port = int(os.environ.get("PORT", 8000))  # Render provides PORT env
 #     app.run(host="0.0.0.0", port=port)
 
 
